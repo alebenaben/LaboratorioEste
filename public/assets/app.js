@@ -191,7 +191,7 @@
   document.addEventListener('click', async e => {
     const t = e.target;
     if (t.matches('[data-close-modal]')) { cerrarModal(); return; }
-    if (t.matches('[data-close-panel]')) { cerrarPanel(); return; }
+    if (t.matches('[data-close-panel]')) { window.cerrarPanel(); return; }
     const b = t.closest('[data-act],[data-modal],[data-panel],[data-post],[data-descargar],[data-wa],[data-href]');
     if (!b) return;
     if (b.dataset.href) { location.href = b.dataset.href; return; }
@@ -212,14 +212,14 @@
       if (j.modalHtml) { modal(j.modalHtml); return; }
       if (j.redirect) { location.href = j.redirect; return; }
       if (j.mensaje) toast(j.mensaje);
-      if (j.panel) { abrirPanel(j.panel); }
+      if (j.panel) { document.body.dataset.refrescar = 1; abrirPanel(j.panel); }
       if (j.recargar) setTimeout(() => location.reload(), j.mensaje ? 700 : 0);
       if (j.cerrar) cerrarModal();
       return;
     }
     const act = b.dataset.act;
     if (act === 'modal-no') { cerrarModal(); return; }
-    if (act === 'panel-no') { cerrarPanel(); return; }
+    if (act === 'panel-no') { window.cerrarPanel(); return; }
     if (act === 'salir') { const j = await postJSON('/salir', {}); location.href = j.redirect || '/ingreso'; return; }
     if (act === 'novedades') { abrirModalUrl('/novedades'); return; }
     if (act === 'imprimir') { window.print(); return; }
@@ -242,7 +242,7 @@
     if (e.target.closest && e.target.closest('.ac,.combo') && !e.target.closest('.ac')?.querySelector('ul')?.hidden) { /* lo maneja la lista */ }
     if (e.target.type === 'search' && e.target.value) return;
     if (hayModal()) { e.preventDefault(); cerrarModal(); return; }
-    if (hayPanel()) { e.preventDefault(); cerrarPanel(); return; }
+    if (hayPanel()) { e.preventDefault(); window.cerrarPanel(); return; }
     const c = $('[data-esc]');
     if (c) { e.preventDefault(); if (c.dataset.esc === 'reset') { c.closest('form')?.reset(); c.dispatchEvent(new Event('esc')); } else location.href = c.dataset.esc; return; }
     const ini = $('[data-esc-inicio]');

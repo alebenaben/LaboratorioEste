@@ -76,3 +76,21 @@ CROSS JOIN LATERAL (VALUES (ce.cuenta, e.importe - e.iva, 0::numeric, 1),
 WHERE l.debe <> 0 OR l.haber <> 0;
 
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO integral_app, integral_backup;
+
+-- ---------------------------------------------------------------------
+-- RT-06 / CU-35: ahorro de cada línea de uso. Si la unidad informó un
+-- precio se usa el ahorro guardado; si no, se calcula con el valor de
+-- referencia vigente de la prestación (los usos sin ninguno de los dos
+-- no suman ahorro).
+-- ---------------------------------------------------------------------
+CREATE VIEW v_usos_lineas AS
+SELECT l.*, u.fecha, u.hora, u.afiliado_id, u.grupo_id, u.plan_id, u.unidad_id, u.numero, u.usuario,
+       u.autorizacion_id, u.pendiente_unidad,
+       CASE WHEN l.lista > 0 THEN l.ahorro
+            ELSE round(p.valor_ref * (l.gratis + (l.cantidad - l.gratis) * l.pct / 100)) END AS ahorro_ef,
+       (l.lista = 0 AND p.valor_ref = 0 AND (l.gratis > 0 OR l.pct > 0)) AS sin_valor
+FROM usos_lineas l
+JOIN usos u ON u.id = l.uso_id
+JOIN prestaciones p ON p.cod = l.prestacion_cod;
+
+GRANT SELECT ON v_usos_lineas TO integral_app, integral_backup;
