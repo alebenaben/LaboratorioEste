@@ -34,4 +34,4 @@ $chipAut = function (array $x): string {
 <?php endforeach;
 if (!$hist): ?><tr><td colspan="7" class="muted">Todavía no hay autorizaciones.</td></tr><?php endif ?>
 </tbody></table></div></div>
-<script src="/assets/autorizaciones.js?v=83"></script>
+<script src="/assets/autorizaciones.js?v=83" defer></script>

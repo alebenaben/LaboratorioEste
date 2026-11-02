@@ -73,4 +73,4 @@ $cfg = ['afiliado' => $a['id'], 'origen' => 'guia', 'ofertas' => $ofertas, 'admi
   <div class="panel" data-como hidden><p class="at-paso">6 · ¿Cómo terminó?</p><div class="row" style="gap:8px" data-ret-fin></div>
     <p class="muted" style="font-size:12.5px;margin:8px 0 0"><?= $admin ? '' : 'Si insiste, respetá su decisión y despedilo con buena onda: la baja la confirma administración. ' ?>La puerta siempre queda abierta para que vuelva.</p></div>
 </div>
-<script src="/assets/retencion.js?v=83"></script>
+<script src="/assets/retencion.js?v=83" defer></script>

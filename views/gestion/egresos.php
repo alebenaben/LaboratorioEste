@@ -43,4 +43,4 @@ $p = $pre ?? [];
 <?php endforeach;
 if (!$res['es']): ?><tr><td colspan="9" class="muted">No hay egresos en este mes.</td></tr><?php endif ?>
 </tbody></table></div></div>
-<script src="/assets/egresos.js?v=83"></script>
+<script src="/assets/egresos.js?v=83" defer></script>

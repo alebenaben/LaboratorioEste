@@ -10,4 +10,4 @@
 <?php foreach ($usos as $l): ?><tr><td class="mono">N° <?= (int)$l['nro'] ?></td><td><?= e(\App\Domain\Fmt::capi($l['nombre1'])) ?> <?= e(mb_substr($l['apellido'], 0, 1)) ?>.</td><td><?= e($l['nombre']) ?><?= $l['cantidad'] > 1 ? ' × ' . (int)$l['cantidad'] : '' ?></td><td><?= (int)$l['gratis'] === (int)$l['cantidad'] ? chip('Sin cargo', 'ok') : ((float)$l['pct'] ? chip(Beneficios::pct((float)$l['pct'])) : '') ?></td><td class="r muted"><?= e(substr((string)$l['hora'], 0, 5)) ?></td></tr><?php endforeach ?>
 </tbody></table></div><?php else: ?><p class="muted" style="margin:0">Todavía no registraste usos hoy.</p><?php endif ?></div>
 <span hidden data-esc="reset"></span>
-<script src="/assets/verificar.js?v=83"></script>
+<script src="/assets/verificar.js?v=83" defer></script>

@@ -40,6 +40,8 @@ $bodyClass = trim(($modoUsuario ? 'modo-usuario' : '') . ($modoUsuario && $vista
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap">
 <link rel="stylesheet" href="/assets/app.css?v=<?= $ver['v'] ?>">
 <link rel="stylesheet" href="/assets/extra.css?v=<?= $ver['v'] ?>">
+<script src="/assets/app.js?v=<?= $ver['v'] ?>" defer></script>
+<script src="/assets/widgets.js?v=<?= $ver['v'] ?>" defer></script>
 </head>
 <body class="<?= e($bodyClass) ?>" data-vista="<?= e($vista) ?>" data-rol="<?= e($u['rol'] ?? '') ?>">
 <div class="app">
@@ -92,7 +94,5 @@ $bodyClass = trim(($modoUsuario ? 'modo-usuario' : '') . ($modoUsuario && $vista
 <div id="layer"></div>
 <div id="layer2"><?php if ($avisoAud): ?><div class="overlay center" data-close-modal><div class="modal" role="alertdialog" aria-modal="true" aria-label="Auditoría pendiente" style="border:2px solid var(--logo-red)"><h2 style="color:var(--logo-red)">⚠ Prestaciones para auditar</h2><p>Hay <b><?= $avisoAud ?></b> <?= $avisoAud === 1 ? 'solicitud' : 'solicitudes' ?> de autorización esperando tu aprobación.</p><div class="row" style="justify-content:flex-end"><button class="btn" type="button" data-act="modal-no">Más tarde</button><a class="btn primary" href="/auditoria">Ir a auditoría</a></div></div></div><?php endif ?></div>
 <?php if ($flash): ?><script type="application/json" id="flash"><?= json_encode($flash, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script><?php endif ?>
-<script src="/assets/app.js?v=<?= $ver['v'] ?>"></script>
-<script src="/assets/widgets.js?v=<?= $ver['v'] ?>"></script>
 </body>
 </html>

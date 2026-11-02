@@ -71,4 +71,4 @@ if (!$recibos): ?><tr><td colspan="8" class="muted">Todavía no hay cobros.</td>
 <?php endforeach;
 if (!$facturas): ?><tr><td colspan="9" class="muted">Sin facturas.</td></tr><?php endif ?>
 </tbody></table></div></div>
-<script src="/assets/caja.js?v=83"></script>
+<script src="/assets/caja.js?v=83" defer></script>

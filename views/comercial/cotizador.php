@@ -41,4 +41,4 @@ $datos = [
 <div class="tbl-wrap"><table><thead><tr><th>Categoría</th><?php foreach ($planes as $p): ?><th class="r"><?= e($p['nombre']) ?></th><?php endforeach ?></tr></thead>
 <tbody><?php foreach (Catalogo::categorias() as $c): ?><tr><td><b><?= e($c['nombre']) ?></b></td><?php foreach ($planes as $p): $pr = Catalogo::precio($c['id'], $p['id']); ?><td class="r num"><?= $pr ? money($pr) : '<span class="muted">a definir</span>' ?></td><?php endforeach ?></tr><?php endforeach ?></tbody></table></div></div>
 <script type="application/json" id="cot-datos"><?= json_encode($datos, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script>
-<script src="/assets/cotizador.js?v=83"></script>
+<script src="/assets/cotizador.js?v=83" defer></script>

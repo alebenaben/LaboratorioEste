@@ -37,4 +37,4 @@ $paraQuien = fn($p) => $p['planes'] ? 'Solo ' . implode(', ', array_map(fn($x) =
     <div class="row" style="gap:6px"><button class="btn small" type="button" data-descargar="/pdf/promo/<?= $p['id'] ?>">Ver PDF</button><a class="btn small" href="/promociones?editar=<?= $p['id'] ?>">Editar</a><button class="btn small" type="button" data-post="/promociones/<?= $p['id'] ?>/eliminar" data-confirmar="¿Eliminar la promoción “<?= e($p['titulo']) ?>”? Los envíos ya hechos no se deshacen.">Eliminar</button><?php if ($et === 'Terminada'): ?><button class="btn small primary" type="button" disabled title="La promoción ya terminó">Enviar a los afiliados</button><?php else: ?><a class="btn small primary" href="/promociones?enviar=<?= $p['id'] ?>">Enviar a los afiliados</a><?php endif ?></div></div>
 <?php endforeach ?>
 </div></div>
-<script src="/assets/promociones.js?v=83"></script>
+<script src="/assets/promociones.js?v=83" defer></script>

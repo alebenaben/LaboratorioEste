@@ -14,4 +14,4 @@
 <?php foreach ($usos as $c): ?><tr><td class="mono">N° <?= (int)$c['nro'] ?></td><td><?= e(Fmt::capi($c['nombre1'])) ?> <?= e(mb_substr($c['apellido'], 0, 1)) ?>.</td><td><?= e($c['detalle'] ?: '—') ?></td><td class="r num"><?= (float)$c['importe'] ? money($c['total']) : '' ?><?= (float)$c['pct'] ? '<div class="muted" style="font-size:12px">−' . Fmt::num($c['pct']) . '%</div>' : '' ?></td><td class="r muted"><?= e(substr((string)$c['hora'], 0, 5)) ?></td></tr><?php endforeach ?>
 </tbody></table></div><?php else: ?><p class="muted" style="margin:0">Todavía no registraste consumos hoy.</p><?php endif ?></div>
 <span hidden data-esc="reset"></span>
-<script src="/assets/verificar.js?v=83"></script>
+<script src="/assets/verificar.js?v=83" defer></script>

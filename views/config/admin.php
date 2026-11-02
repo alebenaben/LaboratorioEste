@@ -220,4 +220,4 @@ foreach ($comercios as $x) {
 <div class="panel"><h2>Versiones del sistema</h2><p class="sub">Cada modificación sube el número de versión.</p>
   <ul class="vlist"><?php foreach ($versiones as $x): ?><li><b>Versión <?= (int)$x['v'] ?></b><span><?= fd($x['fecha']) ?></span><span></span><span style="color:var(--ink)"><?= e($x['t']) ?></span></li><?php endforeach ?></ul></div>
 <script type="application/json" id="cfg-datos"><?= json_encode(['prest' => array_values(array_map(fn($p) => ['cod' => $p['cod'], 'nombre' => $p['nombre'], 'unidad' => $p['unidad'], 'valor' => $p['valor_ref'], 'activo' => (bool)$prestActivo[$p['cod']]], $prest)), 'unidades' => array_keys(Catalogo::unidades()), 'tipos' => Catalogo::TIPOS], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script>
-<script src="/assets/config.js?v=83"></script>
+<script src="/assets/config.js?v=83" defer></script>

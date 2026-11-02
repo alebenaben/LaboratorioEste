@@ -11,10 +11,10 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,500;6..72,600&display=swap">
 <link rel="stylesheet" href="/assets/app.css?v=<?= \App\Domain\Version::actual()['v'] ?>">
 <link rel="stylesheet" href="/assets/extra.css?v=<?= \App\Domain\Version::actual()['v'] ?>">
+<script src="/assets/app.js?v=<?= \App\Domain\Version::actual()['v'] ?>" defer></script>
 </head>
 <body>
 <?= $contenido ?>
 <div id="layer2"></div>
-<script src="/assets/app.js?v=<?= \App\Domain\Version::actual()['v'] ?>"></script>
 </body>
 </html>

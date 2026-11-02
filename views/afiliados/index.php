@@ -17,5 +17,5 @@ foreach (Catalogo::planes() as $p) {
 </div>
 <div class="tbl-wrap"><table><thead><tr><th>N°</th><th>Nombre</th><th>CUIT/DNI</th><th>Categoría</th><th class="r">Cuota</th><th>Paga con</th><th>Alta</th><th>Cuenta</th></tr></thead>
 <tbody id="tb-af"><?= \App\Core\View::parcial('afiliados/_filas', ['filas' => $filas, 'cuentas' => $cuentas]) ?></tbody></table></div>
-<script src="/assets/afiliados.js?v=83"></script>
+<script src="/assets/afiliados.js?v=83" defer></script>
 <?php if ($abrir): ?><span hidden data-abrir-ficha="<?= (int)$abrir ?>"></span><?php endif ?>

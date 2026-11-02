@@ -40,4 +40,4 @@ $datos = [
   </div>
   <script type="application/json" id="alta-datos"><?= json_encode($datos, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script>
 </form>
-<script src="/assets/altas.js?v=83"></script>
+<script src="/assets/altas.js?v=83" defer></script>

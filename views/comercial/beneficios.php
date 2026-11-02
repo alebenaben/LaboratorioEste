@@ -41,4 +41,4 @@ $datos = ['nombres' => array_values(array_unique(array_merge(array_map([Fmt::cla
 </tbody></table></div>
 <div class="panel"><h2>Condiciones</h2><?php foreach (Catalogo::condiciones() as $c): ?><p style="margin:6px 0"><?= e($c) ?></p><?php endforeach ?></div>
 <script type="application/json" id="ben-datos"><?= json_encode($datos, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG) ?></script>
-<script src="/assets/beneficios.js?v=83"></script>
+<script src="/assets/beneficios.js?v=83" defer></script>
