@@ -1,0 +1,39 @@
+# Integral del Este — Caddy (Arquitectura, sección 4)
+# Pide y renueva solo los certificados de Let's Encrypt y redirige HTTP a HTTPS.
+{
+	email {$EMAIL_ACME}
+}
+
+{$DOMINIO} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	request_body {
+		max_size 20MB
+	}
+
+	reverse_proxy app:80 {
+		header_up X-Forwarded-Proto {scheme}
+		lb_try_duration 30s
+		lb_try_interval 500ms
+		health_uri /salud
+		health_interval 10s
+	}
+
+	handle_errors 502 503 {
+		respond "Sistema en mantenimiento. Volvé a intentar en unos minutos." 503
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

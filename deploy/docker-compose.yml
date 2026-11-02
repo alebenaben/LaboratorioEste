@@ -1,0 +1,136 @@
+# Integral del Este — despliegue en un VPS (Arquitectura, sección 3).
+# Se usa desde /opt/integral/deploy:   docker compose up -d
+#
+# Solo Caddy publica puertos. La base no tiene ningún puerto publicado.
+name: integral
+
+x-log: &log
+  driver: json-file
+  options: { max-size: "10m", max-file: "5" }
+
+x-app: &app
+  build:
+    context: ..
+    dockerfile: deploy/Dockerfile
+  image: integral-app:${APP_TAG:-local}
+  env_file: .env
+  restart: unless-stopped
+  depends_on:
+    db: { condition: service_healthy }
+  logging: *log
+
+services:
+  caddy:
+    image: caddy:2.8
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      DOMINIO: ${DOMINIO}
+      EMAIL_ACME: ${EMAIL_ACME}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+    depends_on: [app]
+    mem_limit: 256m
+    logging: *log
+
+  app:
+    <<: *app
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/db_app_password
+    secrets: [db_app_password]
+    networks: [edge, db_net]
+    mem_limit: 1g
+
+  worker:
+    <<: *app
+    command: ["php", "bin/worker.php"]
+    stop_grace_period: 60s
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/db_app_password
+      SMTP_PASSWORD_FILE: /run/secrets/smtp_password
+      ARCA_CERT_FILE: /run/secrets/arca_cert
+      ARCA_KEY_FILE: /run/secrets/arca_key
+    secrets: [db_app_password, smtp_password, arca_cert, arca_key]
+    networks: [db_net, egress]
+    mem_limit: 768m
+    healthcheck: { disable: true }
+
+  # Crea o actualiza la base (se corre a mano o desde deploy.sh):
+  #   docker compose run --rm migrar
+  migrar:
+    <<: *app
+    restart: "no"
+    profiles: [herramientas]
+    command: ["php", "bin/migrar.php"]
+    environment:
+      DB_OWNER_USER: integral
+      DB_OWNER_PASSWORD_FILE: /run/secrets/db_password
+      DB_PASSWORD_FILE: /run/secrets/db_app_password
+      DB_BACKUP_PASSWORD_FILE: /run/secrets/db_backup_password
+    secrets: [db_password, db_app_password, db_backup_password]
+    networks: [db_net]
+    healthcheck: { disable: true }
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: integral
+      POSTGRES_USER: integral
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+      POSTGRES_INITDB_ARGS: "--data-checksums --locale-provider=icu --icu-locale=es-AR"
+      TZ: America/Argentina/Buenos_Aires
+    command: >
+      postgres -c shared_buffers=512MB -c effective_cache_size=1536MB -c work_mem=16MB
+               -c maintenance_work_mem=128MB -c max_connections=50 -c timezone=America/Argentina/Buenos_Aires
+    secrets: [db_password]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [db_net]
+    shm_size: 256m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U integral -d integral"]
+      interval: 10s
+      retries: 5
+    mem_limit: 2g
+    logging: *log
+
+  backup:
+    build: ./backup
+    image: integral-backup:local
+    restart: unless-stopped
+    env_file: .env.backup
+    environment:
+      DB_PASSWORD_FILE: /run/secrets/db_backup_password
+      RESTIC_PASSWORD_FILE: /run/secrets/restic_password
+      AWS_SECRET_ACCESS_KEY_FILE: /run/secrets/s3_secret_key
+    secrets: [db_backup_password, restic_password, s3_secret_key]
+    volumes: [backup_cache:/cache]
+    networks: [db_net, egress]
+    depends_on:
+      db: { condition: service_healthy }
+    mem_limit: 512m
+    logging: *log
+
+networks:
+  edge: {}
+  db_net: { internal: true }
+  egress: {}
+
+volumes:
+  pgdata: {}
+  caddy_data: {}
+  caddy_config: {}
+  backup_cache: {}
+
+secrets:
+  db_password:        { file: ./secrets/db_password }
+  db_app_password:    { file: ./secrets/db_app_password }
+  db_backup_password: { file: ./secrets/db_backup_password }
+  smtp_password:      { file: ./secrets/smtp_password }
+  restic_password:    { file: ./secrets/restic_password }
+  s3_secret_key:      { file: ./secrets/s3_secret_key }
+  arca_cert:          { file: ./secrets/arca.crt }
+  arca_key:           { file: ./secrets/arca.key }
