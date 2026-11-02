@@ -1,0 +1,13 @@
+/* Agregados del sistema instalado sobre los estilos de la maqueta v82. */
+.toast-bad{background:var(--bad)!important;color:#fff!important}
+.form-error{margin:0;color:var(--bad)}
+a.btn{text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+a.tile-inicio{text-decoration:none;color:inherit}
+a.linklike{text-decoration:none}
+.ubar a.logo{text-decoration:none}
+tr[data-panel],tr[data-href]{cursor:pointer}
+tr[data-panel]:hover td,tr[data-href]:hover td{background:var(--sunken)}
+.paginas{display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:8px}
+textarea{font:inherit;font-size:15px;border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--surface);color:var(--ink);width:100%}
+.estado-cae{font-size:12px}
+@media print{aside,.abar,.ubar,.alerta-aud,.no-print,.toast{display:none!important}.app{display:block}main{padding:0}}

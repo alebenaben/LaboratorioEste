@@ -1,0 +1,8 @@
+/vendor/
+/.env
+/storage/
+/deploy/secrets/
+/deploy/.env
+/deploy/.env.backup
+.phpunit.cache/
+*.log
