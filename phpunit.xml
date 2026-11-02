@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         failOnWarning="true">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Integracion">
+            <directory>tests/Integracion</directory>
+        </testsuite>
+        <testsuite name="Http">
+            <directory>tests/Http</directory>
+        </testsuite>
+    </testsuites>
+    <php>
+        <!-- Base de pruebas: se borra y se vuelve a crear con los scripts y los lotes en cada corrida. -->
+        <env name="APP_ENV" value="test" force="true"/>
+        <env name="DB_NAME" value="integral_test" force="true"/>
+        <env name="ARCA_MODO" value="simulado" force="true"/>
+        <env name="MAIL_MODO" value="desactivado" force="true"/>
+        <env name="TZ" value="America/Argentina/Buenos_Aires"/>
+    </php>
+</phpunit>

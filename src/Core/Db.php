@@ -114,11 +114,16 @@ final class Db
      */
     public function tx(callable $fn, string $aislamiento = ''): mixed
     {
+        $sp = null;
         if ($this->nivelTx === 0) {
             $this->pdo->beginTransaction();
             if ($aislamiento) {
                 $this->pdo->exec("SET TRANSACTION ISOLATION LEVEL $aislamiento");
             }
+        } else {
+            // Transacción anidada: un punto de guardado permite deshacer solo esta parte.
+            $sp = 'sp' . $this->nivelTx;
+            $this->pdo->exec("SAVEPOINT $sp");
         }
         $this->nivelTx++;
         try {
@@ -126,15 +131,34 @@ final class Db
             $this->nivelTx--;
             if ($this->nivelTx === 0) {
                 $this->pdo->commit();
+            } elseif ($sp) {
+                $this->pdo->exec("RELEASE SAVEPOINT $sp");
             }
             return $r;
         } catch (\Throwable $e) {
             $this->nivelTx--;
             if ($this->nivelTx === 0 && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
+            } elseif ($sp && $this->pdo->inTransaction()) {
+                $this->pdo->exec("ROLLBACK TO SAVEPOINT $sp");
             }
             throw $e;
         }
+    }
+
+    /** Pruebas: abre una transacción externa que se deshace al terminar cada prueba. */
+    public function iniciarPrueba(): void
+    {
+        $this->pdo->beginTransaction();
+        $this->nivelTx = 1;
+    }
+
+    public function terminarPrueba(): void
+    {
+        if ($this->pdo->inTransaction()) {
+            $this->pdo->rollBack();
+        }
+        $this->nivelTx = 0;
     }
 
     public function enTx(): bool
