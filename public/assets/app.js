@@ -231,6 +231,9 @@
     }
   });
 
+  /* Filtros que se aplican al cambiar (sin JavaScript en línea por la política de seguridad). */
+  document.addEventListener('change', e => { if (e.target.matches('[data-autosubmit]') && e.target.form) e.target.form.submit(); });
+
   /* Filas con data-open abren la ficha con clic o Enter. */
   document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.target.matches('tr[data-panel],tr[data-href]')) { e.target.click(); }
