@@ -10,6 +10,8 @@ Esta guía deja el sistema funcionando en un VPS de Hostinger con Ubuntu 24.04 L
 
 Tiempo estimado: 1 a 2 horas la primera vez.
 
+> **¿El VPS tiene EasyPanel?** Entonces no sigas esta guía: usá [EASYPANEL.md](EASYPANEL.md). EasyPanel ya ocupa los puertos 80 y 443 con su propio proxy.
+
 > En el texto, `sistema.integraldeleste.com.ar` es el dominio de ejemplo (S-01). Reemplazalo por el real.
 
 ---

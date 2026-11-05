@@ -100,6 +100,27 @@ foreach ($archivos as $f) {
 }
 echo $aplicadas ? "Se aplicaron $aplicadas script(s).\n" : "La base ya estaba al día.\n";
 
+// Roles y permisos: se vuelven a aplicar en cada corrida (claves rotadas, restauración
+// en un servidor nuevo). 001_roles.sql es idempotente: crea los roles o les pone la clave.
+if ($appPass !== '' && is_file("$dir/permisos.sql")) {
+    $roles = str_replace(
+        ['__APP_PASSWORD__', '__BACKUP_PASSWORD__'],
+        [str_replace("'", "''", $appPass), str_replace("'", "''", $bkPass)],
+        (string)file_get_contents("$dir/001_roles.sql")
+    );
+    $pdo->beginTransaction();
+    try {
+        $pdo->exec($roles);
+        $pdo->exec((string)file_get_contents("$dir/permisos.sql"));
+        $pdo->commit();
+        echo "Roles y permisos al día.\n";
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        fwrite(STDERR, "No se pudieron actualizar los roles y permisos: {$e->getMessage()}\n");
+        exit(1);
+    }
+}
+
 if (in_array('--lotes', $args, true)) {
     $lotes = glob("$dir/lotes/L[0-9][0-9]_*.sql") ?: [];
     sort($lotes);

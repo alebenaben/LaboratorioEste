@@ -3,15 +3,18 @@
 # La corre loop.sh cada 6 horas; deploy.sh la corre antes de cada versión:  docker compose run --rm backup /backup.sh
 set -euo pipefail
 
-export PGPASSWORD="$(cat "${DB_PASSWORD_FILE}")"
-export RESTIC_PASSWORD_FILE AWS_ACCESS_KEY_ID
-export AWS_SECRET_ACCESS_KEY="$(cat "${AWS_SECRET_ACCESS_KEY_FILE}")"
+# Cada clave se toma de la variable (EasyPanel) o, si no está, del archivo *_FILE (secretos de Docker Compose).
+export PGPASSWORD="${DB_PASSWORD:-$(cat "${DB_PASSWORD_FILE}")}"
+export AWS_SECRET_ACCESS_KEY="${AWS_SECRET_ACCESS_KEY:-$(cat "${AWS_SECRET_ACCESS_KEY_FILE}")}"
+if [ -n "${RESTIC_PASSWORD:-}" ]; then export RESTIC_PASSWORD; unset RESTIC_PASSWORD_FILE; else export RESTIC_PASSWORD_FILE; fi
+export AWS_ACCESS_KEY_ID
 export RESTIC_CACHE_DIR="${RESTIC_CACHE_DIR:-/cache}"
 DB_HOST="${DB_HOST:-db}"; DB_NAME="${DB_NAME:-integral}"; DB_USER="${DB_USER:-integral_backup}"
 
 registrar() { # ok detalle
-  psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -q -v ok="$1" -v det="$2" \
-    -c "INSERT INTO backups_estado (ok, origen, detalle) VALUES (:'ok'::boolean, 'automatica', :'det')" || true
+  # Las variables :'ok' y :'det' solo se reemplazan si el SQL entra por stdin (no con -c).
+  echo "INSERT INTO backups_estado (ok, origen, detalle) VALUES (:'ok'::boolean, 'automatica', :'det')" \
+    | psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME" -q -v ON_ERROR_STOP=1 -v ok="$1" -v det="$2" || true
 }
 
 # Inicializa el repositorio la primera vez.

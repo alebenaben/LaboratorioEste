@@ -16,6 +16,7 @@ Implementa los 52 casos de uso de `Integral_del_Este_-_Casos_de_uso.docx.md` sob
 | Documento | Para qué |
 |---|---|
 | [docs/INSTALACION.md](docs/INSTALACION.md) | Instalación en un VPS de Hostinger con Ubuntu 24.04 y Docker Compose; ambiente de pruebas; desarrollo local |
+| [docs/EASYPANEL.md](docs/EASYPANEL.md) | Despliegue desde GitHub en un VPS que ya tiene EasyPanel (Traefik, Postgres administrado) |
 | [docs/OPERACION.md](docs/OPERACION.md) | Tareas del día a día: nuevas versiones, copias de seguridad, restauración, monitoreo, rotación de secretos |
 | [docs/ARCA.md](docs/ARCA.md) | Certificado, homologación y producción de la factura electrónica (WSAA / WSFEv1) |
 | [docs/PLAN_DE_PRUEBAS.md](docs/PLAN_DE_PRUEBAS.md) | Lotes de prueba, pruebas automáticas y matriz de aceptación por caso de uso |
@@ -93,4 +94,4 @@ Crea la base `integral_test` desde cero con los scripts y los lotes, y corre 111
 
 ## Producción
 
-Docker Compose en un VPS (Caddy con HTTPS automático, la aplicación, el worker, PostgreSQL 17 y las copias cifradas con restic). Paso a paso en [docs/INSTALACION.md](docs/INSTALACION.md).
+Docker Compose en un VPS (Caddy con HTTPS automático, la aplicación, el worker, PostgreSQL 17 y las copias cifradas con restic). Paso a paso en [docs/INSTALACION.md](docs/INSTALACION.md). Si el VPS tiene EasyPanel: [docs/EASYPANEL.md](docs/EASYPANEL.md).

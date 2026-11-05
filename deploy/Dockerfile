@@ -36,4 +36,5 @@ RUN mkdir -p storage/mails && chown -R www-data:www-data storage
 
 ENV TZ=America/Argentina/Buenos_Aires
 EXPOSE 80
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD php -r "exit(@file_get_contents('http://127.0.0.1/salud') === false ? 1 : 0);"
+# En el worker (SERVICIO=worker) el chequeo siempre da bien: no tiene servidor web.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 CMD ["php", "bin/salud.php"]
