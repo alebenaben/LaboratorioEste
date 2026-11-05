@@ -1,0 +1,38 @@
+#!/bin/sh
+# Integral del Este — tareas de mantenimiento desde la consola del contenedor
+# (en EasyPanel: Console del servicio). Toma la conexión de DATABASE_URL.
+#
+#   integral migrar [--estado|--lotes]   aplica las migraciones (como el dueño de la base)
+#   integral crear-admin <usuario> <clave>
+#   integral worker                      procesa la cola una vez (CAE y mails)
+#   integral copia                       hace una copia de seguridad ahora
+#   integral copias                      lista las copias guardadas
+#   integral restaurar <id>              restaura esa copia en la base integral_restaurada
+#   integral psql                        abre psql como el dueño de la base
+set -e
+cd /var/www/integral 2>/dev/null || cd "$(dirname "$0")/.."
+# Si faltan los datos de la base, entorno.php explica qué falta y se termina acá.
+ENTORNO="$(php bin/entorno.php)" || exit 1
+eval "$ENTORNO"
+
+orden="${1:-ayuda}"
+[ "$#" -gt 0 ] && shift
+case "$orden" in
+  migrar)      exec php bin/migrar.php "$@" ;;
+  crear-admin) exec php bin/crear-admin.php "$@" ;;
+  worker)      exec php bin/worker.php --una-vez ;;
+  copia)       DB_USER=integral_backup DB_PASSWORD="$DB_BACKUP_PASSWORD" exec /backup.sh ;;
+  copias)      export RESTIC_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; exec restic snapshots --tag pg "$@" ;;
+  restaurar)
+    [ -n "${1:-}" ] || { echo "Uso: integral restaurar <id>   (los id salen de: integral copias)"; exit 1; }
+    export RESTIC_PASSWORD AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY PGPASSWORD="$DB_OWNER_PASSWORD"
+    destino="${DB_NAME}_restaurada"
+    createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_OWNER_USER" "$destino"
+    restic dump "$1" integral.dump \
+      | pg_restore -h "$DB_HOST" -p "$DB_PORT" -U "$DB_OWNER_USER" -d "$destino" --no-owner --role="$DB_OWNER_USER" --exit-on-error
+    echo "Copia $1 restaurada en la base \"$destino\". Para usarla: detener la aplicación,"
+    echo "renombrar las bases (ver docs/EASYPANEL.md, paso 7) e iniciarla de nuevo."
+    ;;
+  psql)        PGPASSWORD="$DB_OWNER_PASSWORD" exec psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_OWNER_USER" -d "$DB_NAME" "$@" ;;
+  *)           sed -n '2,12p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+esac

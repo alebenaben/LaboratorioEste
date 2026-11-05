@@ -1,0 +1,16 @@
+# No se manda al build: dependencias locales, secretos, datos y archivos de trabajo.
+.git
+.github
+vendor
+storage
+.env
+.env.*
+!.env.example
+.phpunit.cache
+tests
+node_modules
+capturas
+deploy/secrets
+deploy/.env
+deploy/.env.backup
+*.log

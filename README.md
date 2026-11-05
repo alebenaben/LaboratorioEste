@@ -16,7 +16,7 @@ Implementa los 52 casos de uso de `Integral_del_Este_-_Casos_de_uso.docx.md` sob
 | Documento | Para qué |
 |---|---|
 | [docs/INSTALACION.md](docs/INSTALACION.md) | Instalación en un VPS de Hostinger con Ubuntu 24.04 y Docker Compose; ambiente de pruebas; desarrollo local |
-| [docs/EASYPANEL.md](docs/EASYPANEL.md) | Despliegue desde GitHub en un VPS que ya tiene EasyPanel (Traefik, Postgres administrado) |
+| [docs/EASYPANEL.md](docs/EASYPANEL.md) | Despliegue automático desde GitHub en un VPS con EasyPanel: un servicio Postgres y la aplicación, unidos por `DATABASE_URL` |
 | [docs/OPERACION.md](docs/OPERACION.md) | Tareas del día a día: nuevas versiones, copias de seguridad, restauración, monitoreo, rotación de secretos |
 | [docs/ARCA.md](docs/ARCA.md) | Certificado, homologación y producción de la factura electrónica (WSAA / WSFEv1) |
 | [docs/PLAN_DE_PRUEBAS.md](docs/PLAN_DE_PRUEBAS.md) | Lotes de prueba, pruebas automáticas y matriz de aceptación por caso de uso |
@@ -34,7 +34,9 @@ views/           plantillas de las pantallas, modales y PDF
 bin/             migrar.php, worker.php, crear-admin.php
 database/        scripts de creación (roles, esquema, vistas, catálogos, padrón inicial)
 database/lotes/  lotes de prueba L00 a L08
-deploy/          Dockerfile, docker-compose.yml, Caddyfile, copias (restic), deploy.sh
+Dockerfile       imagen "todo en uno" (web + worker + migraciones + copias) para EasyPanel
+deploy/          despliegue con Docker Compose: Dockerfile, docker-compose.yml, Caddyfile, copias, deploy.sh
+deploy/integral/ arranque y procesos de la imagen "todo en uno"
 tests/           PHPUnit (Unit, Integracion, Http) y prueba de humo en el navegador (e2e)
 ```
 
@@ -94,4 +96,18 @@ Crea la base `integral_test` desde cero con los scripts y los lotes, y corre 111
 
 ## Producción
 
-Docker Compose en un VPS (Caddy con HTTPS automático, la aplicación, el worker, PostgreSQL 17 y las copias cifradas con restic). Paso a paso en [docs/INSTALACION.md](docs/INSTALACION.md). Si el VPS tiene EasyPanel: [docs/EASYPANEL.md](docs/EASYPANEL.md).
+**Con EasyPanel** (lo más simple): un servicio Postgres y un servicio App desde este repositorio, que usa el `Dockerfile` de la raíz. La única variable obligatoria es `DATABASE_URL`. Las migraciones, el worker y las copias arrancan solos. Paso a paso en [docs/EASYPANEL.md](docs/EASYPANEL.md).
+
+Imagen "todo en uno" con Docker, sin EasyPanel:
+
+```bash
+docker build -t integral .
+```
+
+```bash
+docker run -d -p 8080:80 -e DATABASE_URL=postgres://usuario:clave@host:5432/integral integral
+```
+
+**Sin panel:**
+
+Docker Compose en un VPS (Caddy con HTTPS automático, la aplicación, el worker, PostgreSQL 17 y las copias cifradas con restic). Paso a paso en [docs/INSTALACION.md](docs/INSTALACION.md).

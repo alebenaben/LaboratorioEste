@@ -2,7 +2,241 @@
 
 Guía para instalar el sistema en un VPS que ya tiene **EasyPanel**, tomando el código directamente del repositorio de GitHub. Si el VPS está limpio y no tiene EasyPanel, seguí [INSTALACION.md](INSTALACION.md) (Docker Compose con Caddy).
 
-EasyPanel ya trae su propio proxy (Traefik) con HTTPS automático, así que **no** se usa `deploy/docker-compose.yml` ni Caddy. El sistema se arma con cuatro servicios dentro de un proyecto:
+El repositorio trae un **`Dockerfile` en la raíz** pensado para esto. EasyPanel lo encuentra solo y arma un único contenedor con todo lo necesario:
+
+- la aplicación web (Apache + PHP 8.3, puerto 80);
+- el **worker**, que pide los CAE a ARCA y envía los mails;
+- las **migraciones** de la base, que se aplican solas en cada arranque (la primera vez crean las tablas, los roles y el padrón inicial);
+- las **copias de seguridad** cifradas cada 6 horas, si cargás los datos de un bucket.
+
+No hay que instalar nada a mano en el VPS ni entrar por consola. Solo hacen falta **dos servicios**: la base de datos (Postgres de EasyPanel) y la aplicación (desde GitHub), unidas por **una sola variable**, `DATABASE_URL`.
+
+> Los nombres de las pestañas y botones de EasyPanel pueden variar un poco según la versión. Si algo no aparece donde dice la guía, buscá el equivalente en la configuración del servicio.
+
+Tiempo estimado: 20 a 30 minutos. La primera construcción de la imagen tarda entre 5 y 10 minutos.
+
+---
+
+## 1. Conectar EasyPanel con GitHub
+
+1. **Rama a desplegar.** El código está en la rama `claude/stoic-ptolemy-6eomzl`. Lo recomendado es unirla a `main` con un pull request y desplegar `main`. Si preferís, en el paso 3 se puede elegir esa rama directamente.
+2. **Acceso de EasyPanel al repositorio.** Como el repositorio es privado:
+   1. En GitHub: **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**.
+   2. Repository access: solo `alebenaben/LaboratorioEste`. Permisos: **Contents: Read-only** y **Metadata: Read-only**.
+   3. En EasyPanel: **Settings → GitHub**, pegar el token y guardar.
+
+## 2. Crear el proyecto y la base de datos
+
+1. En EasyPanel: **Create Project**, con el nombre `integral`.
+2. Dentro del proyecto: **+ Service → Postgres**.
+   - **Service name:** `db`
+   - **Database name:** `integral`
+   - **Image:** `postgres:17`
+   - El usuario y la clave los puede generar EasyPanel.
+3. Crear el servicio. **No** actives la exposición del puerto a Internet.
+4. En la pestaña de credenciales del servicio, copiá la **Internal connection URL**. Tiene esta forma:
+
+   ```
+   postgres://postgres:CLAVE@integral_db:5432/integral
+   ```
+
+   Guardá esa URL en la bóveda del equipo: tiene la clave del dueño de la base.
+
+## 3. Crear la aplicación
+
+1. **+ Service → App**, con el nombre `app`.
+2. **Source → GitHub:**
+   - **Owner:** `alebenaben`
+   - **Repository:** `LaboratorioEste`
+   - **Branch:** `main`, o `claude/stoic-ptolemy-6eomzl`
+   - **Build path:** `/`
+3. **Build → Dockerfile.** El archivo es `Dockerfile` (el de la raíz, que es el valor por defecto).
+4. **Environment:** pegá la URL del paso 2.4 (es lo único obligatorio):
+
+   ```ini
+   DATABASE_URL=postgres://postgres:CLAVE@integral_db:5432/integral
+   ```
+
+5. **Domains → Add Domain:**
+   - **Host:** `sistema.integraldeleste.com.ar`, con un registro **A** del dominio apuntando a la IP del VPS. Para probar sirve el subdominio que ofrece EasyPanel.
+   - **HTTPS:** activado
+   - **Port:** `80`
+6. **Deploy.** EasyPanel construye la imagen y arranca el contenedor. En **Logs** se ve:
+
+   ```
+   {"nivel":"info","msg":"aplicando migraciones"}
+   Aplicando 001_roles.sql… listo
+   …
+   Se aplicaron 5 script(s).
+   Roles y permisos al día.
+   {"nivel":"info","msg":"copias de seguridad: desactivadas (…)"}
+   {"nivel":"info","msg":"iniciando web, worker y copias (ARCA: simulado, mail: archivo)"}
+   … INFO success: web entered RUNNING state …
+   … INFO success: worker entered RUNNING state …
+   ```
+
+7. Abrí `https://<tu-dominio>/salud`. Tiene que responder `{"ok":true,…}`.
+
+Listo: el sistema está funcionando, con ARCA en modo **simulado** y los mails guardados dentro del contenedor (sin enviarse). Los pasos 4 a 6 completan la configuración real.
+
+## 4. Primer ingreso
+
+1. Abrí `https://<tu-dominio>` e ingresá como **Santiago**, con clave **Santiago**. El sistema obliga a cambiar la clave antes de seguir; cada usuario hace lo mismo en su primer ingreso.
+2. En **Configuración**:
+   - **Usuarios:** revisar la lista y desactivar los que no correspondan.
+   - **Facturación / Puntos de venta:** punto de venta de cuotas y **último N°** de Factura A y B.
+   - **Mails:** revisar los textos.
+
+## 5. Variables opcionales
+
+Se agregan en **Environment** del servicio `app`; después, **Deploy**.
+
+**Envío de mails (SMTP).** Con `SMTP_HOST` cargado, el sistema pasa solo a enviar los mails:
+
+```ini
+SMTP_HOST=smtp.proveedor.com
+SMTP_PORT=587
+SMTP_USER=sistema@integraldeleste.com.ar
+SMTP_PASSWORD=<clave SMTP>
+MAIL_FROM=sistema@integraldeleste.com.ar
+MAIL_FROM_NAME=Integral del Este
+MAIL_REPLY_TO=administracion@integraldeleste.com.ar
+```
+
+Para que no caigan en spam, configurá SPF, DKIM y DMARC del dominio, como en INSTALACION.md, paso 10.
+
+**Copias de seguridad.** Hace falta un bucket S3 en **otro** proveedor (Backblaze B2 o Cloudflare R2). Cuando están las cuatro variables, el contenedor hace una copia cada 6 horas (00, 06, 12 y 18 h) y su estado se ve en **Configuración → Copias de seguridad**:
+
+```ini
+RESTIC_REPOSITORY=s3:https://s3.us-west-004.backblazeb2.com/integral-copias/integral
+RESTIC_PASSWORD=<clave larga; guardala en la bóveda: sin ella las copias no se pueden leer>
+AWS_ACCESS_KEY_ID=<id de la clave del bucket>
+AWS_SECRET_ACCESS_KEY=<clave del bucket>
+# Opcionales
+BACKUP_HORAS=0,6,12,18
+HEARTBEAT_BACKUP_URL=
+```
+
+**ARCA (factura electrónica).** Seguí [ARCA.md](ARCA.md) para obtener el certificado. Para pasarlo al contenedor sin subir archivos, convertí el certificado y la clave a una línea base64:
+
+```bash
+base64 -w0 arca.crt
+```
+
+```bash
+base64 -w0 arca.key
+```
+
+```ini
+ARCA_MODO=homologacion
+ARCA_CUIT=30716447495
+ARCA_CERT_B64=<salida de base64 -w0 arca.crt>
+ARCA_KEY_B64=<salida de base64 -w0 arca.key>
+```
+
+Para producción: el certificado de producción y `ARCA_MODO=produccion`. Después, cargá los últimos números en **Configuración → Puntos de venta**.
+
+**Otras variables.**
+
+| Variable | Valor por defecto | Para qué |
+|---|---|---|
+| `APP_ENV` | `produccion` | `demo` habilita "Volver a cargar el padrón" (ver el paso 8) |
+| `SESSION_IDLE_MINUTES` | `15` | Minutos sin actividad hasta cerrar la sesión |
+| `HEARTBEAT_WORKER_URL` | vacío | URL de Healthchecks.io; el worker avisa cada 5 minutos |
+| `MAIL_MODO` | `smtp` si hay `SMTP_HOST`; si no, `archivo` | `desactivado` para no enviar nada |
+
+No hace falta definir `DB_HOST`, `DB_USER` ni las claves de los roles internos: salen de `DATABASE_URL`. Las claves de `integral_app` (aplicación) e `integral_backup` (copias) se derivan de la clave del dueño, y el contenedor se las vuelve a poner a los roles en cada arranque.
+
+## 6. Actualizaciones automáticas
+
+En el servicio `app`, en **Deployments**, activá **Auto Deploy**, o copiá la **Deploy Webhook URL** y cargala en GitHub (**Settings → Webhooks → Add webhook**, evento *push*).
+
+Cada vez que se sube código a la rama elegida, EasyPanel construye la imagen nueva y la arranca. Las migraciones nuevas se aplican solas al iniciar; son siempre compatibles hacia atrás (ver OPERACION.md).
+
+Mantené **1 réplica** del servicio: el contenedor incluye el worker y las copias.
+
+## 7. Tareas de mantenimiento
+
+Desde la **Console** del servicio `app` está el comando `integral`, que ya sabe conectarse a la base:
+
+| Para qué | Comando |
+|---|---|
+| Estado de las migraciones | `integral migrar --estado` |
+| Recuperar el acceso de un administrador | `integral crear-admin Santiago 'ClaveNueva'` |
+| Procesar la cola de CAE y mails ahora | `integral worker` |
+| Hacer una copia ahora | `integral copia` |
+| Listar las copias | `integral copias` |
+| Restaurar una copia en una base aparte | `integral restaurar <id>` |
+| Entrar a la base | `integral psql` |
+| Ver todo lo disponible | `integral` |
+
+Los errores de la aplicación, del worker y de las copias aparecen todos juntos en **Logs**.
+
+**Restaurar una copia:**
+
+1. En la **Console** de `app`, elegir la copia y restaurarla en una base nueva, `integral_restaurada`. La aplicación sigue funcionando mientras tanto.
+
+   ```bash
+   integral copias
+   ```
+
+   ```bash
+   integral restaurar <id>
+   ```
+
+2. Comprobar los datos restaurados:
+
+   ```bash
+   integral psql -d integral_restaurada -c "select count(*) from afiliados"
+   ```
+
+3. Detener `app` (botón **Stop**).
+4. En la **Console** del servicio `db`, intercambiar las bases (si el usuario de la URL no es `postgres`, usá ese):
+
+   ```bash
+   psql -U postgres -d postgres -c "ALTER DATABASE integral RENAME TO integral_anterior" -c "ALTER DATABASE integral_restaurada RENAME TO integral"
+   ```
+
+5. Iniciar `app`. Al arrancar vuelve a crear los roles y sus permisos sobre la base restaurada.
+6. Conciliar la numeración con ARCA (paso A.8 de [OPERACION.md](OPERACION.md)).
+7. Pasada una semana sin problemas, borrar la base anterior: `dropdb -U postgres integral_anterior` en la Console de `db`.
+
+## 8. Ambiente de pruebas con los lotes (opcional)
+
+Para validar el producto sin tocar producción, creá un segundo proyecto, por ejemplo `integral-demo`, con los pasos 2 y 3 y estas variables:
+
+```ini
+DATABASE_URL=<la URL del Postgres del proyecto integral-demo>
+APP_ENV=demo
+CARGAR_LOTES=1
+```
+
+En el primer arranque se cargan solos los **lotes de prueba**; en los siguientes no se vuelven a cargar. Con los lotes, la clave de cada usuario es su nombre. La matriz de pruebas está en [PLAN_DE_PRUEBAS.md](PLAN_DE_PRUEBAS.md). `CARGAR_LOTES` no hace nada con `APP_ENV=produccion`.
+
+## 9. Problemas frecuentes
+
+| Síntoma | Causa probable | Solución |
+|---|---|---|
+| El log dice `Faltan los datos de la base de datos` | No está `DATABASE_URL` | Paso 3.4 |
+| `No se pudo conectar a la base` | La URL no es la interna, o el servicio `db` está detenido | Usar la **Internal** connection URL (host `integral_db`) |
+| El dominio da **502 / Bad Gateway** | El puerto del dominio no es 80, o el contenedor todavía está arrancando | Domains → Port `80`; esperar a que el servicio esté en verde (el primer arranque puede tardar un par de minutos) |
+| El ingreso vuelve siempre a la pantalla de ingreso | El dominio está sin HTTPS | Activar HTTPS en Domains |
+| Los mails no salen | Falta `SMTP_HOST`, o la clave SMTP es incorrecta | Paso 5; ver el error en Logs |
+| `No se encuentran el certificado o la clave de ARCA` | Faltan `ARCA_CERT_B64` / `ARCA_KEY_B64` | Paso 5 |
+| Configuración → Copias en rojo | Faltan variables del bucket, o falla restic | Logs; probar con `integral copia` |
+| La construcción falla al descargar paquetes | El VPS no llega a los repositorios de Debian o PostgreSQL | Revisar el firewall de salida del VPS y volver a desplegar |
+
+## Seguridad
+
+- La aplicación y el worker se conectan con el rol `integral_app`, sin permisos para crear ni borrar tablas. Al arrancar, el contenedor quita del entorno de esos procesos la clave del dueño de la base.
+- Las variables de EasyPanel son visibles para quien entra al panel. Protegé el acceso a EasyPanel con una clave fuerte y verificación en dos pasos.
+- Las claves de ARCA se guardan en el contenedor con permisos de lectura solo para el usuario de la aplicación.
+
+---
+
+## Anexo — Instalación con servicios separados
+
+Alternativa para quien prefiera la aplicación, el worker y las copias como servicios independientes (por ejemplo, para escalar la web por separado). Usa `deploy/Dockerfile`.
 
 | Servicio | Tipo en EasyPanel | Qué hace |
 |---|---|---|
@@ -11,15 +245,7 @@ EasyPanel ya trae su propio proxy (Traefik) con HTTPS automático, así que **no
 | `app` | App (desde GitHub) | La aplicación web. Es el único servicio con dominio |
 | `copias` | App (desde GitHub) | Copia cifrada de la base cada 6 horas a un bucket externo (restic) |
 
-`app` y `worker` usan la misma imagen (`deploy/Dockerfile`).
-
-> Los nombres de las pestañas y botones de EasyPanel pueden variar un poco según la versión. Si algo no aparece donde dice la guía, buscá el equivalente en la configuración del servicio.
-
-Tiempo estimado: 45 a 90 minutos. Cada servicio construye su imagen la primera vez (5 a 10 minutos).
-
----
-
-## 0. Antes de empezar
+### 0. Antes de empezar
 
 - [ ] **VPS:** EasyPanel instalado y actualizado. Como mínimo 4 GB de RAM; se recomiendan 8 GB.
 - [ ] **Dominio:** un subdominio para el sistema, por ejemplo `sistema.integraldeleste.com.ar`, con un registro **A** apuntando a la IP del VPS. Comprobarlo con `dig +short sistema.integraldeleste.com.ar`.
@@ -28,7 +254,7 @@ Tiempo estimado: 45 a 90 minutos. Cada servicio construye su imagen la primera v
 - [ ] **Copias:** un bucket S3 compatible en **otro** proveedor (Backblaze B2 o Cloudflare R2), con una clave de acceso solo para ese bucket.
 - [ ] **ARCA** (para facturar de verdad): el certificado y la clave privada (`arca.crt`, `arca.key`), según [ARCA.md](ARCA.md). Se puede empezar en modo `simulado` y agregarlos después.
 
-## 1. Preparar el repositorio en GitHub
+### 1. Preparar el repositorio en GitHub
 
 1. **Rama a desplegar.** El código está en la rama `claude/stoic-ptolemy-6eomzl`. Lo recomendado es unirla a `main` con un pull request y desplegar siempre `main`. Si preferís, en el paso 4 se puede elegir esa rama directamente.
 2. **Acceso de EasyPanel al repositorio** (el repositorio es privado):
@@ -36,7 +262,7 @@ Tiempo estimado: 45 a 90 minutos. Cada servicio construye su imagen la primera v
    2. Repository access: solo `alebenaben/LaboratorioEste`. Permisos: **Contents: Read-only** y **Metadata: Read-only**. Si querés que GitHub avise a EasyPanel en cada cambio (paso 8), agregá **Webhooks: Read and write**.
    3. En EasyPanel: **Settings → GitHub**, pegar el token y guardar.
 
-## 2. Generar las claves
+### 2. Generar las claves
 
 Generá cada clave con este comando, en tu PC o en la consola del VPS:
 
@@ -55,7 +281,7 @@ Hacen falta cuatro:
 
 Guardalas en la bóveda del equipo (Bitwarden, 1Password o similar) antes de seguir.
 
-## 3. Crear el proyecto y la base de datos
+### 3. Crear el proyecto y la base de datos
 
 1. En EasyPanel: **Create Project**, con el nombre `integral`.
 2. Dentro del proyecto: **+ Service → Postgres**.
@@ -67,7 +293,7 @@ Guardalas en la bóveda del equipo (Bitwarden, 1Password o similar) antes de seg
 3. Crear el servicio. **No** actives la exposición del puerto a Internet.
 4. En la pestaña de credenciales del servicio, anotá el **host interno**. Con estos nombres es `integral_db` (formato `<proyecto>_<servicio>`).
 
-## 4. Servicio `worker` (crea la base; va primero)
+### 4. Servicio `worker` (crea la base; va primero)
 
 1. **+ Service → App**, con el nombre `worker`.
 2. **Source → GitHub:**
@@ -140,7 +366,7 @@ Guardalas en la bóveda del equipo (Bitwarden, 1Password o similar) antes de seg
 
    En los arranques siguientes dice "La base ya estaba al día." y "Roles y permisos al día."
 
-## 5. Servicio `app` (la aplicación web)
+### 5. Servicio `app` (la aplicación web)
 
 1. **+ Service → App**, con el nombre `app`.
 2. **Source** y **Build:** igual que el worker (mismo repositorio, rama, Build path `/` y Dockerfile `deploy/Dockerfile`).
@@ -177,7 +403,7 @@ Guardalas en la bóveda del equipo (Bitwarden, 1Password o similar) antes de seg
 6. **Deploy.** Esperar a que el servicio quede en verde (healthy).
 7. Comprobar que `https://sistema.integraldeleste.com.ar/salud` responde **ok**. La primera vez el certificado de Let's Encrypt puede tardar uno o dos minutos.
 
-## 6. Primer ingreso
+### 6. Primer ingreso
 
 1. Abrir `https://sistema.integraldeleste.com.ar` e ingresar como **Santiago**, con clave **Santiago**. El sistema obliga a cambiar la clave antes de seguir; cada usuario hace lo mismo en su primer ingreso.
 2. En **Configuración**:
@@ -186,7 +412,7 @@ Guardalas en la bóveda del equipo (Bitwarden, 1Password o similar) antes de seg
    - **Mails:** revisar los textos.
 3. Probar el envío: cargar tu propio email en un grupo de prueba y enviarle su factura o una promoción. El mail lo manda el worker en pocos segundos; los errores aparecen en sus **Logs**.
 
-## 7. Servicio `copias`
+### 7. Servicio `copias`
 
 1. **+ Service → App**, con el nombre `copias`.
 2. **Source → GitHub:** mismo repositorio y rama, con **Build path:** `/deploy/backup`.
@@ -221,7 +447,7 @@ Guardalas en la bóveda del equipo (Bitwarden, 1Password o similar) antes de seg
 
    Tiene que terminar con `Copia correcta: …`. En el sistema, **Configuración → Copias de seguridad** muestra la copia en verde.
 
-## 8. Actualizaciones automáticas
+### 8. Actualizaciones automáticas
 
 En `app` y en `worker`, en **Deployments**, activar **Auto Deploy**, o copiar la **Deploy Webhook URL** y cargarla en GitHub: **Settings → Webhooks → Add webhook**, evento *push*.
 
@@ -232,7 +458,7 @@ Cada vez que se sube código a la rama elegida:
 
 Antes de una versión importante, hacé una copia a mano (paso 7.7).
 
-## 9. Activar ARCA
+### 9. Activar ARCA
 
 1. Seguir [ARCA.md](ARCA.md) para obtener el certificado de **homologación**.
 2. En el servicio `worker`:
@@ -243,7 +469,7 @@ Antes de una versión importante, hacé una copia a mano (paso 7.7).
 4. Facturar un mes de prueba y ver que se complete la columna **CAE**.
 5. Para **producción**: reemplazar el contenido de los File Mounts por el certificado de producción, poner `ARCA_MODO=produccion` en los dos servicios y cargar los últimos números en **Configuración → Puntos de venta**.
 
-## 10. Tareas de todos los días
+### 10. Tareas de todos los días
 
 | Para qué | Dónde |
 |---|---|
@@ -258,7 +484,7 @@ Antes de una versión importante, hacé una copia a mano (paso 7.7).
 | Reiniciar un servicio | Botón **Restart** del servicio |
 | Cambiar la clave de `integral_app` | Nueva `DB_PASSWORD` en `worker` y en `app`; **Deploy** del worker (el migrador pone la clave nueva en cada arranque) y después de `app` |
 
-### Restaurar una copia
+#### Restaurar una copia
 
 Es el mismo procedimiento que la sección A de [OPERACION.md](OPERACION.md), con estas diferencias:
 
@@ -283,7 +509,7 @@ Es el mismo procedimiento que la sección A de [OPERACION.md](OPERACION.md), con
 4. Iniciar `worker`: aplica las migraciones pendientes y vuelve a crear los roles y sus permisos. Después iniciar `app`.
 5. Conciliar la numeración con ARCA (paso A.8 de OPERACION.md).
 
-## 11. Ambiente de pruebas (opcional)
+### 11. Ambiente de pruebas (opcional)
 
 Para probar sin tocar producción, armá un segundo proyecto, por ejemplo `integral-demo`, con los mismos pasos 3 a 5 y estos cambios:
 
@@ -301,7 +527,7 @@ Después de cargar los lotes, la clave de cada usuario es su nombre. La matriz d
 
 > `--reiniciar` borra todos los datos. Se niega a correr con `APP_ENV=produccion`.
 
-## 12. Problemas frecuentes
+### 12. Problemas frecuentes
 
 | Síntoma | Causa probable | Solución |
 |---|---|---|
@@ -313,7 +539,7 @@ Después de cargar los lotes, la clave de cada usuario es su nombre. La matriz d
 | `No se encuentran el certificado o la clave de ARCA` | Faltan los File Mounts en el worker | Paso 4.5 |
 | Configuración → Copias en rojo | `copias` no corre, o falla el bucket | Logs de `copias`; correr `/backup.sh` a mano |
 
-## Diferencias con la instalación con Docker Compose
+### Diferencias con la instalación con Docker Compose
 
 - **Proxy:** Traefik (EasyPanel) reemplaza a Caddy. La IP real de cada usuario se sigue usando para el límite de intentos de ingreso: Apache confía en la red interna de Docker (`RemoteIPInternalProxy 10.0.0.0/8`).
 - **Red de la base:** el puerto no se publica, pero la red la comparten todos los servicios del proyecto. En Compose estaba aislada (`internal`).

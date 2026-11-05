@@ -8,6 +8,7 @@ declare(strict_types=1);
  *   php bin/migrar.php --lotes       además carga los lotes de prueba (database/lotes)
  *   php bin/migrar.php --reiniciar   BORRA todo y vuelve a crear (solo APP_ENV=demo|test|desarrollo)
  *   php bin/migrar.php --estado      muestra qué scripts están aplicados
+ *   php bin/migrar.php --lotes-si-faltan  carga los lotes solo si todavía no están (ambiente de pruebas)
  *
  * Se conecta como el dueño del esquema (DB_OWNER_USER / DB_OWNER_PASSWORD[_FILE]).
  * Las claves de integral_app e integral_backup se toman de DB_PASSWORD[_FILE]
@@ -121,7 +122,18 @@ if ($appPass !== '' && is_file("$dir/permisos.sql")) {
     }
 }
 
-if (in_array('--lotes', $args, true)) {
+$cargarLotes = in_array('--lotes', $args, true);
+if (in_array('--lotes-si-faltan', $args, true)) {
+    if (Env::get('APP_ENV', 'produccion') === 'produccion') {
+        fwrite(STDERR, "Los lotes de prueba no se cargan con APP_ENV=produccion.\n");
+        exit(1);
+    }
+    // Los afiliados de prueba del lote L03 tienen N° 501 en adelante.
+    $cargarLotes = !$pdo->query('SELECT 1 FROM afiliados WHERE nro >= 500 LIMIT 1')->fetchColumn();
+    echo $cargarLotes ? "Faltan los lotes de prueba: se cargan.\n" : "Los lotes de prueba ya estaban cargados.\n";
+}
+
+if ($cargarLotes) {
     $lotes = glob("$dir/lotes/L[0-9][0-9]_*.sql") ?: [];
     sort($lotes);
     foreach ($lotes as $f) {

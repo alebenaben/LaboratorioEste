@@ -40,7 +40,62 @@ final class Env
             return trim((string)file_get_contents($f));
         }
         $v = getenv($k);
-        return $v === false || $v === '' ? $def : $v;
+        if ($v !== false && $v !== '') {
+            return $v;
+        }
+        return self::derivado($k) ?? $def;
+    }
+
+    /**
+     * Valores que se deducen cuando no están definidos (despliegue con una sola variable,
+     * por ejemplo en EasyPanel):
+     *   - DB_HOST, DB_PORT, DB_NAME, DB_OWNER_USER y DB_OWNER_PASSWORD salen de
+     *     DATABASE_URL (postgres://usuario:clave@host:puerto/base);
+     *   - las claves de integral_app e integral_backup se derivan de la clave del dueño
+     *     (HMAC-SHA256), así no hay que generarlas ni guardarlas. El migrador se las pone
+     *     a los roles en cada corrida.
+     * Lo que se define explícitamente siempre tiene prioridad.
+     */
+    private static function derivado(string $k): ?string
+    {
+        $url = in_array($k, ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_OWNER_USER', 'DB_OWNER_PASSWORD'], true)
+            ? self::urlBase() : [];
+        switch ($k) {
+            case 'DB_HOST':
+                return $url['host'] ?? null;
+            case 'DB_PORT':
+                return isset($url['port']) ? (string)$url['port'] : null;
+            case 'DB_NAME':
+                $b = isset($url['path']) ? urldecode(ltrim($url['path'], '/')) : '';
+                return $b !== '' ? $b : null;
+            case 'DB_OWNER_USER':
+                return isset($url['user']) ? urldecode($url['user']) : null;
+            case 'DB_OWNER_PASSWORD':
+                return isset($url['pass']) ? urldecode($url['pass']) : null;
+            case 'DB_PASSWORD':
+                return self::claveInterna('integral_app');
+            case 'DB_BACKUP_PASSWORD':
+                return self::claveInterna('integral_backup');
+        }
+        return null;
+    }
+
+    /** @return array<string, string|int> partes de DATABASE_URL, o [] si no está. */
+    private static function urlBase(): array
+    {
+        $u = getenv('DATABASE_URL');
+        if ($u === false || $u === '') {
+            return [];
+        }
+        $p = parse_url($u);
+        return is_array($p) && in_array($p['scheme'] ?? '', ['postgres', 'postgresql', 'pgsql'], true) ? $p : [];
+    }
+
+    /** Clave de un rol interno, derivada de la clave del dueño de la base. */
+    private static function claveInterna(string $rol): ?string
+    {
+        $duenio = self::get('DB_OWNER_PASSWORD');
+        return $duenio === null ? null : substr(hash_hmac('sha256', "integral-del-este:$rol", $duenio), 0, 40);
     }
 
     public static function int(string $k, int $def): int
