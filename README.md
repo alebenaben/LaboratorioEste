@@ -34,6 +34,7 @@ views/           plantillas de las pantallas, modales y PDF
 bin/             migrar.php, worker.php, crear-admin.php
 database/        scripts de creación (roles, esquema, vistas, catálogos, padrón inicial)
 database/lotes/  lotes de prueba L00 a L08
+database/estado_inicial.sql  deja la base "de fábrica": sin afiliados y solo admin/admin (se corre a mano)
 Dockerfile       imagen "todo en uno" (web + worker + migraciones + copias) para EasyPanel
 deploy/          despliegue con Docker Compose: Dockerfile, docker-compose.yml, Caddyfile, copias, deploy.sh
 deploy/integral/ arranque y procesos de la imagen "todo en uno"
